@@ -45,7 +45,7 @@ function pagerank(
 
         for v in vertices(g)
             for u in neighbors(g, v)
-                xlast[v] += (x[u] * α_div_outdegree[u])
+                xlast[v] += (x[u] * g.weights[v,u] * α_div_outdegree[u]) # 1/outdeg = probability that it passes to v
             end
         end
         # l1 change in solution convergence criterion
