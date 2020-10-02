@@ -17,15 +17,7 @@ A dictionary that relates Boolean 7-lists to triplets of motifs. Each 7-list
 represents an h-motif, and each associated triplet is an instance of that h-motif.
 """
 function all_motifs(H::Hypergraph)
-    motif_inst = Dict{Vector{Bool},Vector{Tuple{Int64,Int64,Int64}}}()
-
-    for p1 in [[0,0,0],[0,0,1],[0,1,1],[1,1,1]] # Initialize all possible motif keys
-        for p2 in [[0,0,0],[0,0,1],[0,1,1],[1,1,1]]
-            for f in [[0],[1]]
-                motif_inst[[p1;p2;f]] = []
-            end
-        end
-    end
+    motif_inst = Dict{Int8,Vector{Tuple{Int64,Int64,Int64}}}(i => [] for i = 0:26)
 
     for i = 1:H.m-2
         for j = i+1:H.m-1
@@ -36,7 +28,7 @@ function all_motifs(H::Hypergraph)
                 if (!isempty(intersect(H.edges[i], H.edges[j])) && !isempty(intersect(H.edges[j], H.edges[k]))) || # Triplet is connected
                    (!isempty(intersect(H.edges[i], H.edges[k])) && !isempty(intersect(H.edges[j], H.edges[k]))) ||
                    (!isempty(intersect(H.edges[i], H.edges[k])) && !isempty(intersect(H.edges[i], H.edges[j])))
-                   push!(motif_inst[motif_vec(H.edges[i],H.edges[j],H.edges[k])], (i,j,k))
+                   push!(motif_inst[get_id(H.edges[i],H.edges[j],H.edges[k])], (i,j,k))
                end
             end
         end
@@ -45,23 +37,45 @@ function all_motifs(H::Hypergraph)
     return motif_inst
 end
 
-motif_vec(ei::Vector{Int64},ej::Vector{Int64},ek::Vector{Int64}) = # Turns a triplet of edges into the correct h-motif vector
-    [sort([!isempty(setdiff(setdiff(ei,ej),ek)), !isempty(setdiff(setdiff(ej,ek),ei)), !isempty(setdiff(setdiff(ek,ei),ej))]);
-     sort([!isempty(setdiff(intersect(ei,ej),ek)), !isempty(setdiff(intersect(ej,ek),ei)), !isempty(setdiff(intersect(ek,ei),ej))]);
-     !isempty(intersect(ei,intersect(ej,ek)))]
+function get_id(ei::Vector{Int64}, ej::Vector{Int64}, ek::Vector{Int64})
+	motif_id::Vector{Int8} = [ # Used for converting from binary vector to motif id
+		0, 0, 0, 0, 0, 0, 17, 7,
+		0, 0, 17, 7, 17, 7, 23, 13,
+		0, 0, 0, 3, 0, 3, 18, 8,
+		0, 0, 19, 9, 19, 9, 24, 14,
+		0, 0, 0, 0, 0, 3, 19, 9,
+		0, 3, 19, 9, 18, 8, 24, 14,
+		0, 1, 0, 5, 0, 4, 20, 10,
+		0, 5, 21, 11, 20, 10, 25, 15,
+		0, 0, 0, 3, 0, 0, 19, 9,
+		0, 3, 18, 8, 19, 9, 24, 14,
+		0, 1, 0, 4, 0, 5, 20, 10,
+		0, 5, 20, 10, 21, 11, 25, 15,
+		0, 1, 0, 5, 0, 5, 21, 11,
+		0, 4, 20, 10, 20, 10, 25, 15,
+		0, 2, 0, 6, 0, 6, 22, 12,
+		0, 6, 22, 12, 22, 12, 26, 16
+	]
 
-function id_to_motif(id::Int8) # Given a h-motif id, returns the corresponding h-motif vector TODO
-
+	vect = (!isempty(setdiff(setdiff(ei,ej))) << 6) +
+		   (!isempty(setdiff(setdiff(ej,ek),ei)) << 5) +
+		   (!isempty(setdiff(setdiff(ek,ei),ej)) << 4) +
+		   (!isempty(setdiff(intersect(ei,ej),ek)) << 3) +
+		   (!isempty(setdiff(intersect(ej,ek),ei)) << 2) +
+		   (!isempty(setdiff(intersect(ek,ei),ej)) << 1) +
+		   (!isempty(intersect(ei,intersect(ej,ek))))
+	println(motif_id[vect+1])
+	return motif_id[vect+1]
 end
 
-function motif_cooccurence(H::Hypergraph, m::Vector{Bool})
+function motif_cooccurence(H::Hypergraph, m::Int8)
     W = spzeros(H.n, H.n)
     motifs = all_motifs(H)
 
-    for t in motifs[m]
-        for u in t[1]
-            for v in t[2]
-                for w in t[3]
+    for tr in motifs[m]
+        for u in tr[1]
+            for v in tr[2]
+                for w in tr[3]
                     W[u,v] += 1
                     W[v,u] += 1
                     W[v,w] += 1
