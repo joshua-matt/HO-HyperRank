@@ -72,19 +72,15 @@ function motif_cooccurence(H::Hypergraph, m::Int8)
     W = spzeros(H.n, H.n)
     motifs = all_motifs(H)
 
-    for tr in motifs[m]
-        for u in tr[1]
-            for v in tr[2]
-                for w in tr[3]
-                    W[u,v] += 1
-                    W[v,u] += 1
-                    W[v,w] += 1
-                    W[w,v] += 1
-                    W[u,w] += 1
-                    W[w,u] += 1
-                end
-            end
-        end
+    for tr in motifs[m] # TODO: Only connect adjacent nodes? So if we have an open motif, we don't connect nodes at opposite ends
+		nodes = Set(union(H.edges[tr[1]], H.edges[tr[2]], H.edges[tr[3]]))
+		len = length(nodes)
+        for u = 1:len-1
+			for v = u+1:len
+				W[u,v] += 1
+				W[v,u] += 1
+			end
+		end
     end
 
     return W
