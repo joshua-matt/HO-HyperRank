@@ -3,11 +3,14 @@ Hypergraph data structure.
 """
 
 using LightGraphs, SimpleWeightedGraphs
+using SparseArrays
 
 """
 `Hypergraph{T}`
 =====================
+
 Represents a vertex-labeled hypergraph as a list of edges.
+
 Fields
 ------
    - `vals::Vector{T}`: The values corresponding to each node (or hyperedge, depending on use case)
@@ -16,15 +19,6 @@ Fields
    - `D::Vector{Int64}`: The degree sequence, where `D[i] = degree of node i`
    - `K::Vector{Int64}`: The edge dimension sequence, where `K[j] = size of edge j`
    - `edges::Vector{Vector{Int64}}`: The hyperedges and their members
-A hypergraph is a generalization of a graph in which edges can contain any number
-of nodes. So, for example, if we wanted to denote a three-way relationship between
-nodes 1, 2, and 3, the hypergraph would contain the edge `{1, 2, 3}`.
-Hypergraphs are useful because they allow us to more accurately indicate relationships
-among groups of things. Consider a coauthorship network. In a dyadic graph,
-we might represent a five-way collaboration as a 5-clique. While this does capture
-the fact that all pairs of authors have now appeared in a paper together, it doesn't seem
-right to categorize the event as 15 pairwise interactions. With a hypergraph, we
-can more succinctly and intuitively represent the event as a single hyperedge of five nodes.
 """
 mutable struct Hypergraph{T}
    vals::Vector{T}
@@ -33,6 +27,10 @@ mutable struct Hypergraph{T}
    D::Vector{Int64}
    K::Vector{Int64}
    edges::Vector{Vector{Int64}}
+end
+
+mutable struct MatrixHypergraph
+   incidence::SparseMatrixCSC
 end
 
 """
@@ -93,7 +91,45 @@ function Hypergraph(edges::Vector{Vector{Int64}})
    return Hypergraph(edges, maximum([e[i] for e in edges for i = 1:length(e)]), length(edges))
 end
 
+function Hypergraph(file::String; separator::String=" ")
+   edges::Vector{Vector{Int64}} = []
+   open(file) do f
+      for ln in readlines(f)
+         push!(edges, parse.(Int64,split(ln,separator)))
+      end
+   end
+
+   return Hypergraph(edges)
+end
+
 Base.copy(H::Hypergraph) = Hypergraph(deepcopy(h.edges), deepcopy(h.vals), h.n, h.m)
+
+function MatrixHypergraph(edges::Vector{Vector{Int64}}, n::Int64, m::Int64)
+   matrix = spzeros(Int64,n,m)
+
+   for e = 1:length(edges)
+      for v in edges[e]
+         matrix[v,e] = 1
+      end
+   end
+
+   return MatrixHypergraph(matrix)
+end
+
+function MatrixHypergraph(edges::Vector{Vector{Int64}})
+   return MatrixHypergraph(edges, maximum([e[i] for e in edges for i = 1:length(e)]), length(edges))
+end
+
+function MatrixHypergraph(file::String; separator::String=" ")
+   edges::Vector{Vector{Int64}} = []
+   open(file) do f
+      for ln in readlines(f)
+         push!(edges, parse.(Int64,split(ln,separator)))
+      end
+   end
+
+   return MatrixHypergraph(edges)
+end
 
 """
 `dyadic_projection`
@@ -131,4 +167,24 @@ function dyadic_projection(H::Hypergraph)
       add_edge!(G, e..., weights[e])
    end
    return G
+end
+
+"""
+`get_hyperwedges`
+=================
+
+Finds all connected triplets of hyperedges in a hypergraph.
+"""
+function get_hyperwedges(H::Hypergraph)
+
+end
+
+"""
+`dual`
+======
+
+Returns the dual of the given hypergraph.
+"""
+function dual(M::MatrixHypergraph)
+   
 end
