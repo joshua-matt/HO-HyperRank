@@ -170,28 +170,9 @@ function dyadic_projection(H::Hypergraph)
 end
 
 function dyadic_projection(M::MatrixHypergraph)
-   weights = Dict()
-   inc = M.incidence
-   n = size(inc,1)
-   m = size(inc,2)
-
-   for j = 1:m
-      column = inc.rowval[inc.colptr[j]:inc.colptr[j+1]-1]
-      for u = 1:length(column)-1
-         for v = u+1:length(column)
-            if !(haskey(weights, [column[u],column[v]]))
-               weights[[column[u],column[v]]] = 0
-            end
-            weights[[column[u],column[v]]] += 1
-         end
-      end
-   end
-
-   G = SimpleWeightedGraph(n)
-   for e in keys(weights)
-      add_edge!(G, e..., weights[e])
-   end
-   return G
+   Z = M.incidence * M.incidence'
+   Z -= Diagonal(Z)
+   return SimpleWeightedGraph(Z)
 end
 
 """
@@ -202,7 +183,7 @@ Finds all connected triplets of hyperedges in a hypergraph.
 """
 function get_hyperwedges(M::MatrixHypergraph)
    wedges::Set{Set{Int64}} = Set()
-   G = dyadic_projection(dual(M))
+   @time G = dyadic_projection(dual(M))
 
    for u = 1:nv(G)
       neigh = neighbors(G,u)
