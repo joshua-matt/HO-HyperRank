@@ -3,132 +3,85 @@ Hypergraph data structure.
 """
 
 using LightGraphs, SimpleWeightedGraphs
+using SparseArrays
+using Combinatorics
 
-"""
-`Hypergraph{T}`
-=====================
-Represents a vertex-labeled hypergraph as a list of edges.
-Fields
-------
-   - `vals::Vector{T}`: The values corresponding to each node (or hyperedge, depending on use case)
-   - `n::Int64`: The number of nodes
-   - `m::Int64`: The number of hyperedges
-   - `D::Vector{Int64}`: The degree sequence, where `D[i] = degree of node i`
-   - `K::Vector{Int64}`: The edge dimension sequence, where `K[j] = size of edge j`
-   - `edges::Vector{Vector{Int64}}`: The hyperedges and their members
-A hypergraph is a generalization of a graph in which edges can contain any number
-of nodes. So, for example, if we wanted to denote a three-way relationship between
-nodes 1, 2, and 3, the hypergraph would contain the edge `{1, 2, 3}`.
-Hypergraphs are useful because they allow us to more accurately indicate relationships
-among groups of things. Consider a coauthorship network. In a dyadic graph,
-we might represent a five-way collaboration as a 5-clique. While this does capture
-the fact that all pairs of authors have now appeared in a paper together, it doesn't seem
-right to categorize the event as 15 pairwise interactions. With a hypergraph, we
-can more succinctly and intuitively represent the event as a single hyperedge of five nodes.
-"""
-mutable struct Hypergraph{T}
-   vals::Vector{T}
-   n::Int64
-   m::Int64
-   D::Vector{Int64}
-   K::Vector{Int64}
-   edges::Vector{Vector{Int64}}
+mutable struct MatrixHypergraph
+   incidence::SparseMatrixCSC
 end
 
-"""
-`Hypergraph_kernel`
-===================
-Verifies that:
-   - The number of edges == `m`
-   - The number of vals == `n`
-   - All nodes are between 0 and `n`
-If all conditions are met, returns degree and edge dimension sequences
-"""
-function Hypergraph_kernel(edges::Vector{Vector{Int64}}, vals::Vector{T},
-                           n::Int64, m::Int64) where T
-   @assert length(edges) == m # m is the number of edges
-   @assert length(vals) == n # Each node has a val associated with it
-   @assert all([0 < edges[i][j] < n + 1 for i = 1:m for j = 1:length(edges[i])]) # No node exceeds n
+function MatrixHypergraph(edges::Vector{Vector{Int64}}, n::Int64, m::Int64)
+   matrix = spzeros(Int64,n,m)
 
-   D = zeros(Int64, n)
-   K = zeros(Int64, m)
-   for e = 1:m
-      K[e] = size(edges[e],1)
+   for e = 1:length(edges)
       for v in edges[e]
-         D[v] += 1
+         matrix[v,e] = 1
       end
    end
-   edges = sort!.(edges, by=v -> D[v], rev=true) # Sort edges by descending node degree
 
-   return D, K
+   return MatrixHypergraph(matrix)
+end
+
+function MatrixHypergraph(edges::Vector{Vector{Int64}})
+   return MatrixHypergraph(edges, maximum([e[i] for e in edges for i = 1:length(e)]), length(edges))
+end
+
+function MatrixHypergraph(file::String; separator::String=" ")
+   edges::Vector{Vector{Int64}} = []
+   open(file) do f
+      for ln in readlines(f)[1:200]
+         push!(edges, parse.(Int64,split(ln,separator)))
+      end
+   end
+
+   return MatrixHypergraph(edges)
+end
+
+function dyadic_projection(M::MatrixHypergraph)
+   Z = M.incidence * M.incidence'
+   Z -= Diagonal(Z)
+   return SimpleWeightedGraph(Z)
 end
 
 """
-`Hypergraph` constructors
-=============================
-Functions
----------
-   - `Hypergraph(edges, vals, n, m)`: Produces a hypergraph with the given edges, values, and size
-   - `Hypergraph(edges, n, m)`: Produces a hypergraph with the given edge set and size, with all values as 1.0
-   - `Hypergraph(edges)`: Produces a hypergraph with the given set of edges
-Examples
---------
-~~~~
-Hypergraph([[1,2], [3,4], [1,4]], ["One", "Two", "Three", "Four"], 4, 3)
-Hypergraph([[i,i+2] for i=1:3], 4, 3)
-Hypergraph([[1,2,3], [2,4,6], [1,5]])
-~~~~
+`get_hyperwedges`
+=================
+
+Finds all connected triplets of hyperedges in a hypergraph.
 """
-function Hypergraph(edges::Vector{Vector{Int64}}, vals::Vector{T},
-                          n::Int64, m::Int64) where T
-   D, K= Hypergraph_kernel(edges, vals, n, m)
-   return Hypergraph(vals, n, m, D, K, edges)
-end
+function get_hyperwedges(M::MatrixHypergraph)
+   wedges::Vector{Vector{Int64}} = []
+   G::SimpleWeightedGraph = dyadic_projection(dual(M))
 
-function Hypergraph(edges::Vector{Vector{Int64}}, n::Int64, m::Int64)
-   return Hypergraph(edges, ones(n), n, m)
-end
+   neighbor_list::Dict{Int64,Vector{Int64}} = Dict(i => neighbors(G,i) for i = 1:nv(G))
 
-function Hypergraph(edges::Vector{Vector{Int64}})
-   return Hypergraph(edges, maximum([e[i] for e in edges for i = 1:length(e)]), length(edges))
-end
+   by_deg::Vector{Int64} = sort(1:nv(G),by=x->degree(G,x),rev=true)
 
-Base.copy(H::Hypergraph) = Hypergraph(deepcopy(h.edges), deepcopy(h.vals), h.n, h.m)
+   for u in by_deg
+      neigh = neighbor_list[u]
+      len = length(neigh)
 
-"""
-`dyadic_projection`
-===================
-
-Project a hypergraph to a weighted undirected graph.
-
-Arguments
----------
-   - `H::Hypergraph`: The hypergraph to project
-
-Returns
--------
-   - A `SimpleWeightedGraph` in which two nodes are connected iff they share
-     a hyperedge and the edge weight is how many hyperedges they share
-"""
-function dyadic_projection(H::Hypergraph)
-   weights = Dict()
-   edges = sort.(H.edges)
-   for e = 1:H.m
-      for i = 1:H.K[e]
-         for j in i+1:H.K[e]
-            edge = H.edges[e]
-            u, v = edge[i], edge[j]
-            if !((u,v) in keys(weights))
-               weights[(u,v)] = 0
-            end
-            weights[(u,v)] += 1
+      for v = 1:len
+         for w in setdiff(neighbor_list[neigh[v]], [u]) # 2-paths starting at u, going through v
+            push!(wedges, [u,neigh[v],w])
+         end
+         for w = v+1:len # Wedges centered at u including v
+            push!(wedges, [neigh[v],u,neigh[w]])
          end
       end
+      rem_vertex!(G,u)
+      by_deg[(x->x>u).(by_deg)] .-= 1
    end
+   #println(total_neigh/total_v)
+   return wedges
+end
 
-   G = SimpleWeightedGraph(H.n)
-   for e in keys(weights)
-      add_edge!(G, e..., weights[e])
-   end
-   return G
+"""
+`dual`
+======
+
+Returns the dual of the given hypergraph.
+"""
+function dual(M::MatrixHypergraph)
+   return MatrixHypergraph(transpose(M.incidence))
 end
