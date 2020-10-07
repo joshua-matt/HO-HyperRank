@@ -16,28 +16,22 @@ Returns
 A dictionary that relates Boolean 7-lists to triplets of motifs. Each 7-list
 represents an h-motif, and each associated triplet is an instance of that h-motif.
 """
-function all_motifs(H::Hypergraph)
-    motif_inst = Dict{Int8,Vector{Tuple{Int64,Int64,Int64}}}(i => [] for i = 0:26)
+function all_motifs(M::MatrixHypergraph)
+    motif_inst::Vector{Vector{Tuple{Int32,Int32,Int32}}} = [[] for i = 0:26]
+	tris = get_hyperwedges(M)
+	inc = M.incidence
 
-    for i = 1:H.m-2
-        for j = i+1:H.m-1
-            for k = j+1:H.m
-                #=println((H.edges[i],H.edges[j],H.edges[k]))
-                println(motif_vec(H.edges[i],H.edges[j],H.edges[k]))
-                println()=#
-                if (!isempty(intersect(H.edges[i], H.edges[j])) && !isempty(intersect(H.edges[j], H.edges[k]))) || # Triplet is connected
-                   (!isempty(intersect(H.edges[i], H.edges[k])) && !isempty(intersect(H.edges[j], H.edges[k]))) ||
-                   (!isempty(intersect(H.edges[i], H.edges[k])) && !isempty(intersect(H.edges[i], H.edges[j])))
-                   push!(motif_inst[get_id(H.edges[i],H.edges[j],H.edges[k])], (i,j,k))
-               end
-            end
-        end
-    end
+	for t in tris
+		i,j,k = t...
+		id = get_id(inc[:,i], inc[:,j], inc[:,k])
+		if id == 0 continue end
+    	push!(motif_inst[id], (i,j,k))
+	end
 
     return motif_inst
 end
 
-function get_id(ei::Vector{Int64}, ej::Vector{Int64}, ek::Vector{Int64})
+function get_id(ei::Vector{Int32}, ej::Vector{Int32}, ek::Vector{Int32})
 	motif_id::Vector{Int8} = [ # Used for converting from binary vector to motif id
 		0, 0, 0, 0, 0, 0, 17, 7,
 		0, 0, 17, 7, 17, 7, 23, 13,
@@ -57,23 +51,24 @@ function get_id(ei::Vector{Int64}, ej::Vector{Int64}, ek::Vector{Int64})
 		0, 6, 22, 12, 22, 12, 26, 16
 	]
 
-	vect = (!isempty(setdiff(setdiff(ei,ej))) << 6) +
+	vect = (!isempty(setdiff(setdiff(ei,ej)),ek) << 6) +
 		   (!isempty(setdiff(setdiff(ej,ek),ei)) << 5) +
 		   (!isempty(setdiff(setdiff(ek,ei),ej)) << 4) +
 		   (!isempty(setdiff(intersect(ei,ej),ek)) << 3) +
 		   (!isempty(setdiff(intersect(ej,ek),ei)) << 2) +
 		   (!isempty(setdiff(intersect(ek,ei),ej)) << 1) +
 		   (!isempty(intersect(ei,intersect(ej,ek))))
-	println(motif_id[vect+1])
-	return motif_id[vect+1]
+	return motif_id[vect]
 end
 
-function motif_cooccurence(H::Hypergraph, m::Int8)
-    W = spzeros(H.n, H.n)
-    motifs = all_motifs(H)
+function motif_cooccurence(M::MatrixHypergraph, m::Int8)
+    W = spzeros(Int16, M.n, M.n)
+    motifs = all_motifs(M)
+	inc = M.incidence
 
-    for tr in motifs[m] # TODO: Only connect adjacent nodes? So if we have an open motif, we don't connect nodes at opposite ends
-		nodes = Set(union(H.edges[tr[1]], H.edges[tr[2]], H.edges[tr[3]]))
+    for t in motifs[m] # TODO: Only connect adjacent nodes? So if we have an open motif, we don't connect nodes at opposite ends
+		i,j,k = t...
+		nodes = Set(union(inc[:,i], inc[:,j], inc[:,k]))
 		len = length(nodes)
         for u = 1:len-1
 			for v = u+1:len
