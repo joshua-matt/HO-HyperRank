@@ -2,16 +2,17 @@
 Hypergraph data structure.
 """
 
-using LightGraphs, SimpleWeightedGraphs
+using MatrixNetworks
 using SparseArrays
 using Combinatorics
+include("clique.jl")
 
 mutable struct MatrixHypergraph
    incidence::SparseMatrixCSC
 end
 
-function MatrixHypergraph(edges::Vector{Vector{Int64}}, n::Int64, m::Int64)
-   matrix = spzeros(Int64,n,m)
+function MatrixHypergraph(edges::Vector{Vector{Int32}}, n::Int32, m::Int32)
+   matrix = spzeros(Int32,n,m)
 
    for e = 1:length(edges)
       for v in edges[e]
@@ -22,15 +23,15 @@ function MatrixHypergraph(edges::Vector{Vector{Int64}}, n::Int64, m::Int64)
    return MatrixHypergraph(matrix)
 end
 
-function MatrixHypergraph(edges::Vector{Vector{Int64}})
-   return MatrixHypergraph(edges, maximum([e[i] for e in edges for i = 1:length(e)]), length(edges))
+function MatrixHypergraph(edges::Vector{Vector{Int32}})
+   return MatrixHypergraph(edges, maximum([e[i] for e in edges for i = 1:length(e)]), Int32(length(edges)))
 end
 
 function MatrixHypergraph(file::String; separator::String=" ")
-   edges::Vector{Vector{Int64}} = []
+   edges::Vector{Vector{Int32}} = []
    open(file) do f
-      for ln in readlines(f)[1:200]
-         push!(edges, parse.(Int64,split(ln,separator)))
+      for ln in readlines(f)
+         push!(edges, parse.(Int32,split(ln,separator)))
       end
    end
 
@@ -40,7 +41,7 @@ end
 function dyadic_projection(M::MatrixHypergraph)
    Z = M.incidence * M.incidence'
    Z -= Diagonal(Z)
-   return SimpleWeightedGraph(Z)
+   return MatrixNetwork(Z)
 end
 
 """
@@ -50,12 +51,12 @@ end
 Finds all connected triplets of hyperedges in a hypergraph.
 """
 function get_hyperwedges(M::MatrixHypergraph)
-   wedges::Vector{Vector{Int64}} = []
+   #=wedges::Vector{Vector{Int32}} = []
    G::SimpleWeightedGraph = dyadic_projection(dual(M))
 
-   neighbor_list::Dict{Int64,Vector{Int64}} = Dict(i => neighbors(G,i) for i = 1:nv(G))
+   neighbor_list::Dict{Int32,Vector{Int32}} = Dict(i => neighbors(G,i) for i = 1:nv(G))
 
-   by_deg::Vector{Int64} = sort(1:nv(G),by=x->degree(G,x),rev=true)
+   by_deg::Vector{Int32} = sort(1:nv(G),by=x->degree(G,x),rev=true)
 
    for u in by_deg
       neigh = neighbor_list[u]
@@ -73,7 +74,8 @@ function get_hyperwedges(M::MatrixHypergraph)
       by_deg[(x->x>u).(by_deg)] .-= 1
    end
    #println(total_neigh/total_v)
-   return wedges
+   return wedges=#
+   return triangles(dyadic_projection(dual(M)))
 end
 
 """
