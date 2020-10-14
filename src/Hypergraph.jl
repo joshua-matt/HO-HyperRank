@@ -69,4 +69,3 @@ Returns the dual of the given hypergraph.
 """
 function dual(M::MatrixHypergraph)
    return MatrixHypergraph(M.incidence')
-end
