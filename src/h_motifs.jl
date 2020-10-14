@@ -102,14 +102,19 @@ function motif_cooccurence(M::MatrixHypergraph, motifs::Vector{Vector{Tuple{Int3
 
     for t in motifs[m+1] # TODO: Only connect adjacent nodes? So if we have an open motif, we don't connect nodes at opposite ends
 		i,j,k = t
-		nodes = Set(union(inc[i,:].nzind, inc[j,:].nzind, inc[k,:].nzind))
-		len = length(nodes)
-        for u = 1:len-1
-			for v = u+1:len
-				W[u,v] += 1
-				W[v,u] += 1
+		co::Set{Tuple{Int32,Int32}} = Set()
+		for e in [inc[i,:].nzind, inc[j,:].nzind, inc[k,:].nzind] # Only strengthen edges that already exist, and only strengthen once per motif (i.e. don't double-count pairs)
+			len = length(e)
+	        for u = 1:len-1
+				for v = u+1:len
+					push!(co, (e[u],e[v]))
+				end
 			end
 		end
+		for p in co
+			W[p[1],p[2]] += 1
+			W[p[2],p[1]] += 1
+		end
     end
-    return (x->(x>0) ? log10(x) : x).(W)
+    return W ./ maximum(W)
 end

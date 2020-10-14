@@ -4,8 +4,8 @@ using SparseArrays, LinearAlgebra
 using MatrixNetworks
 using Profile
 
-function motif_pagerank(G::Matrix, M::Matrix; d=0.5, α=0.85, ϵ=1.0e-6) # TODO: Find way to add sparse matrices
-    return pagerank(MatrixNetwork(sparse((d*G + (1-d)*M))), α, ϵ)
+function motif_pagerank(G::Matrix, M::Matrix; d=0.5, α=0.85, ϵ=1.0e-6)
+    return pagerank(MatrixNetwork(sparse((d*(G./maximum(G)) + (1-d)*M))), α, ϵ)
 end
 
 """
@@ -22,7 +22,6 @@ end
 function hyper_rank(M::MatrixHypergraph, motifs::Vector{Vector{Tuple{Int32,Int32,Int32}}}, m::Int8; d=0.5, α=0.85, ϵ=1.0e-6)
     G = dyadic_projection(M)
     W = motif_cooccurence(M,motifs,m)
-    #println(W)
     return motif_pagerank(Matrix(sparse(G)),Matrix(W); d=d, α=α, ϵ=ϵ)
 end
 
@@ -34,7 +33,7 @@ Returns the indices of the top `n` maximal elements in descending order of array
 """
 function n_argmax(A::Vector{T}, n::Int64) where T <: Real
     S = copy(A)
-    inds = zeros(n)
+    inds = zeros(Int32,n)
 
     for i = 1:n
         max_ind = argmax(S)
@@ -48,11 +47,18 @@ end
 
 #enron = read("C:\\Users\\Elizabeth Turner\\Documents\\Josh\\School\\F1\\Network Science\\HO-HyperRank-matrix\\src\\new-enron.txt")
 #motifs = all_motifs(enron)
+#println(length.(motifs))
+#M = MatrixHypergraph([[1,2,3],[2,3],[3,5,6],[4]])
 congress = read_arb("C:\\Users\\Elizabeth Turner\\Documents\\Josh\\School\\F1\\Network Science\\HO-HyperRank-matrix\\congress-bills")
 motifs = all_motifs(congress)
+println(length.(motifs))
+
 
 #println(motif_cooccurence(enron,motifs,Int8(2)))
-println(n_argmax(hyper_rank(congress, motifs, Int8(2); d=0.0),10))
+#println(n_argmax(hyper_rank(congress, motifs, Int8(2); d=1.0),10))
+#println(n_argmax(hyper_rank(congress, motifs, Int8(2); d=1.0),10))
+#println(n_argmax(hyper_rank(congress, motifs, Int8(2); d=1.0),10))
+#println(n_argmax(hyper_rank(enron, motifs, Int8(2); d=0.0),10))
 #println(n_argmax(pagerank(dyadic_projection(enron),0.85),10))
 #println(argmax(pagerank(dyadic_projection(enron),0.85)))
 #Profile.init(delay=0.5)

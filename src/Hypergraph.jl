@@ -28,7 +28,7 @@ end
 function read(file::String; separator::String=" ")
    edges::Vector{Vector{Int32}} = []
    open(file) do f
-      for ln in readlines(f)
+      for ln in readlines(f)[1:1000]
          push!(edges, parse.(Int32,split(ln,separator)))
       end
    end
@@ -43,9 +43,8 @@ function read_arb(folder::String)
       open("$folder\\$name-simplices.txt") do simplices
          vertices = parse.(Int32, readlines(simplices))
          i = 1
-         for n in readlines(nverts)
+         for n in readlines(nverts)[1:10000]
             size = parse(Int32,n)
-            #println(n)
             push!(edges, vertices[i:i+size-1])
             i += size
          end
@@ -69,3 +68,4 @@ Returns the dual of the given hypergraph.
 """
 function dual(M::MatrixHypergraph)
    return MatrixHypergraph(M.incidence')
+end
