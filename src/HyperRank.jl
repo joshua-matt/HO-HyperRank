@@ -147,7 +147,7 @@ function n_argmax(A::Vector{T}, n::Int64) where T <: Real
     return inds
 end
 
-root = "C:\\Users\\Elizabeth Turner\\Documents\\Josh\\School\\F1\\Network Science\\HO-HyperRank-matrix\\data\\" # Replace with your data directory
+root = string(@__DIR__) * "\\..\\data\\" # This file must have the same parent directory as data folder
 
 congress = root * "congress-bills"
 dblp = root * "coauth-DBLP"
@@ -176,7 +176,7 @@ println(n_argmax(HEC(T)[1],10))
 println(n_argmax(ZEC(T)[1],10))
 
 println(n_argmax(pagerank(G,0.85),10))
-println(n_argmax(motif_pagerank(Matrix(sparse(G)), Matrix(C))))
+println(n_argmax(motif_pagerank(Matrix(sparse(G)), Matrix(C)),10))
 println(n_argmax(hyper_rank(H, motifs, Int8(8)),10))
 println()
 #println(sort(1:148,by=x->sum(G.vals[G.rp[x]:G.rp[x+1]-1]),rev=true)[1:10])
@@ -189,4 +189,4 @@ println()
 # There are only 500 edges that take part in at least one instance of motif 8?!
 # Out of 20k+ edges? Surprising since there are 13.7k instances of motif 8
 
-# On the other hand, there are 1762 edges that take part in at least one triangle.
+# On the other hand, there are 1762 edges that take part in at least one triangle.=#
