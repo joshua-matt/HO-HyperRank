@@ -40,14 +40,14 @@ A 2D-array where A[i] is the list of triplets that are instances of h-motif i.
 """
 
 function all_motifs(M::MatrixHypergraph)
-	motif_inst::Vector{Vector{Tuple{Int32,Int32,Int32}}} = [[] for i = 0:26]
+	motif_inst::Vector{Vector{Tuple{Int64,Int64,Int64}}} = [[] for i = 0:26]
 	G = dyadic_projection(dual(M))
 	adj = [G.ci[G.rp[i]:G.rp[i+1]-1] for i = 1:G.n]
 	inc = M.incidence'
 	m = size(inc,1)
 	edges = [inc[i,:].nzind for i = 1:m]
 	sizes = length.(edges)
-	inters::Dict{Tuple{Int32,Int32},Vector{Int32}} = Dict((i,j) => intersect(edges[i],edges[j]) for i = 1:m for j in adj[i] if i < j)
+	inters::Dict{Tuple{Int64,Int64},Vector{Int64}} = Dict((i,j) => intersect(edges[i],edges[j]) for i = 1:m for j in adj[i] if i < j)
 
 	for a = 1:m
 		size_a = sizes[a]
@@ -64,14 +64,12 @@ function all_motifs(M::MatrixHypergraph)
 				size_c = sizes[c]
 				deg_c = G.rp[c+1]-G.rp[c]
 
-				if length(get(inters,(b,c),Int32[])) > 0
-					push!(motif_inst[
-								get_id(size_a,size_b,size_c,length(inters[(a,b)]),length(inters[(b,c)]),length(inters[(a,c)]),length(intersect(inters[(a,b)],inc[c,:].nzind)))+1
-									], (a,b,c))
+				if length(get(inters,(b,c),Int64[])) > 0
+ 					#id =
+					push!(motif_inst[get_id(size_a,size_b,size_c,length(inters[(a,b)]),length(inters[(b,c)]),length(inters[(a,c)]),length(intersect(inters[(a,b)],edges[c])))+1], (a,b,c))
 				else
-					push!(motif_inst[
-								get_id(size_a,size_b,size_c,length(inters[(a,b)]),0,length(inters[(a,c)]),0)+1
-									], (a,b,c))
+#					id =
+					push!(motif_inst[get_id(size_a,size_b,size_c,length(inters[(a,b)]),0,length(inters[(a,c)]),0)+1], (a,b,c))
 				end
 			end
 		end
@@ -96,13 +94,13 @@ function get_id(d_a::Int64,d_b::Int64,d_c::Int64,
 	return motif_id[vect+1]
 end
 
-function motif_cooccurence(M::MatrixHypergraph, motifs::Vector{Vector{Tuple{Int32,Int32,Int32}}}, m::Int8)
+function motif_cooccurence(M::MatrixHypergraph, motifs::Vector{Vector{Tuple{Int64,Int64,Int64}}}, m::Int8)
 	inc = M.incidence'
 	W = spzeros(Float64, size(inc,2), size(inc,2))
 
     for t in motifs[m+1] # TODO: Only connect adjacent nodes? So if we have an open motif, we don't connect nodes at opposite ends
 		i,j,k = t
-		co::Set{Tuple{Int32,Int32}} = Set()
+		co::Set{Tuple{Int64,Int64}} = Set()
 		for e in [inc[i,:].nzind, inc[j,:].nzind, inc[k,:].nzind] # Only strengthen edges that already exist, and only strengthen once per motif (i.e. don't double-count pairs)
 			len = length(e)
 	        for u = 1:len-1
@@ -116,5 +114,5 @@ function motif_cooccurence(M::MatrixHypergraph, motifs::Vector{Vector{Tuple{Int3
 			W[p[2],p[1]] += 1
 		end
     end
-    return W ./ maximum(W)
+    return W
 end
