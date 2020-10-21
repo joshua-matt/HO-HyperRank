@@ -20,17 +20,10 @@ matrix definition.
 
 include("Hypergraph.jl") # Hypergraph data structur
 include("h_motifs.jl") # Hypergraph-motif finding, classification
-include("Hyper-Evec-Centrality-master\\centrality.jl")
-include("Hyper-Evec-Centrality-master\\data_io.jl")
 
 using MatrixNetworks # Used for pagerank, graph data structure
 using SparseArrays # Used for converting MatrixNetworks and matrices for PageRanking
 using Profile # Used for performance measurement
-using Statistics
-using StatsBase
-using PyCall
-
-const mpr = pyimport("Enron.pagerank_motif")
 
 """
 `motif_pagerank`
@@ -76,7 +69,7 @@ Arguments
                           Must be in [0,1]. `d=1.0` means the PageRanked matrix
                           is G, and `d=0.0` means the PageRanked matrix is M.
     - `α::Float64(=0.85)`: The PageRank damping term. Must be in [0,1).
-    - `ϵ::Float64(=1.0e-6)`: Tolerance in calculating the PageRank vector
+    - `ϵ::Float64(=1.0e-6)`: Tolerance in calculating the PageRank vector.
 
 Returns
 -------
@@ -108,7 +101,7 @@ Arguments
                           Must be in [0,1]. `d=1.0` means the PageRanked matrix
                           is G, and `d=0.0` means the PageRanked matrix is M.
     - `α::Float64(=0.85)`: The PageRank damping term. Must be in [0,1).
-    - `ϵ::Float64(=1.0e-6)`: Tolerance in calculating the PageRank vector
+    - `ϵ::Float64(=1.0e-6)`: Tolerance in calculating the PageRank vector.
 
 Returns
 -------
@@ -121,72 +114,3 @@ function hyper_rank(M::MatrixHypergraph, motifs::Vector{Vector{Tuple{Int64,Int64
     W = motif_cooccurence(M,motifs,m) # Construct the motif co-occurrence matrix
     return motif_pagerank(Matrix(sparse(G)),Matrix(W); d=d, α=α, ϵ=ϵ)
 end
-
-"""
-`n_argmax`
-==========
-
-Returns the indices of the top `n` maximal elements in descending order of array value.
-
-Arguments
----------
-    - `A::Vector{T}`: A vector of real numbers
-    - `n::Int64`: How many of the top indices to return
-"""
-function n_argmax(A::Vector{T}, n::Int64) where T <: Real
-    S = copy(A) # Copy of A that gets modified during iteration
-    len = min(length(A),n) # How long to make the returned list
-    inds = zeros(Int64,len)
-
-    for i = 1:len
-        max_ind = argmax(S) # Index of the ith largest value of A
-        S[max_ind] = 0
-        inds[i] = max_ind
-    end
-
-    return inds
-end
-
-root = string(@__DIR__) * "\\..\\data\\" # This file must have the same parent directory as data folder
-
-congress = root * "congress-bills"
-dblp = root * "coauth-DBLP"
-enron = root * "email-Enron"
-ubuntu = root * "tags-ask-ubuntu"
-
-T = read_data_unweighted(enron, 5)
-H = read_arb(enron)
-G = dyadic_projection(H)
-C = spzeros(Float64,G.n,G.n)
-
-for t in collect(triangles(G))
-    C[t[1],t[2]] += 1
-    C[t[2],t[1]] += 1
-    C[t[1],t[3]] += 1
-    C[t[3],t[1]] += 1
-    C[t[2],t[3]] += 1
-    C[t[3],t[2]] += 1
-end
-
-motifs = all_motifs(H)
-#MC = motif_cooccurence(H,motifs,Int8(8))
-
-println(n_argmax(CEC(T)[1],10))
-println(n_argmax(HEC(T)[1],10))
-println(n_argmax(ZEC(T)[1],10))
-
-println(n_argmax(pagerank(G,0.85),10))
-println(n_argmax(motif_pagerank(Matrix(sparse(G)), Matrix(C)),10))
-println(n_argmax(hyper_rank(H, motifs, Int8(8)),10))
-println()
-#println(sort(1:148,by=x->sum(G.vals[G.rp[x]:G.rp[x+1]-1]),rev=true)[1:10])
-#println(sort(1:148,by=x->sum(C.nzval[C.colptr[x]:C.colptr[x+1]-1]),rev=true)[1:10])
-#println(sort(1:148,by=x->sum(MC.nzval[MC.colptr[x]:MC.colptr[x+1]-1]),rev=true)[1:10])
-
-# Shared nodes between top triangles and top hyper motifs: None!
-# Shared nodes between top degree and top hyper motifs: 114, 55, 47
-
-# There are only 500 edges that take part in at least one instance of motif 8?!
-# Out of 20k+ edges? Surprising since there are 13.7k instances of motif 8
-
-# On the other hand, there are 1762 edges that take part in at least one triangle.=#
